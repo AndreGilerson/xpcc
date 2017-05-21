@@ -136,6 +136,8 @@ namespace
 				DEBUG_STREAM("read op: reading=" << reading.length);
 				DEBUG_STREAM("nextOperation=" << nextOperation);
 
+				// FIXME reading.length > 0xff
+
 				I2C{{ id }}->CR2 = I2C_CR2_AUTOEND | (reading.length << 16) | \
 								   I2C_CR2_START   | I2C_CR2_RD_WRN | (starting.address & 0xfe);
 
