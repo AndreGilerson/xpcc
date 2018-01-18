@@ -45,6 +45,7 @@ globalIncludes = []
 if env['ARCHITECTURE'].startswith('cortex-m'):
 	globalIncludes += ['cmsis/Include', 'tlsf']
 	sourcePath += ['tlsf']
+	sourcePath += ['fatfs']
 
 # -----------------------------------------------------------------------------
 # Add the STM32 device header files

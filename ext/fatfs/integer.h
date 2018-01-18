@@ -2,38 +2,36 @@
 /* Integer type definitions for FatFs module */
 /*-------------------------------------------*/
 
-#ifndef _INTEGER
-#define _INTEGER
+#ifndef FF_INTEGER
+#define FF_INTEGER
 
 #ifdef _WIN32	/* FatFs development platform */
 
 #include <windows.h>
 #include <tchar.h>
+typedef unsigned __int64 QWORD;
+
 
 #else			/* Embedded platform */
 
-#include <stddef.h>
-#include <stdint.h>
+/* These types MUST be 16-bit or 32-bit */
+typedef int				INT;
+typedef unsigned int	UINT;
 
-/* These types must be 16-bit, 32-bit or larger integer */
-typedef int_fast16_t	INT;
-typedef size_t			UINT;
+/* This type MUST be 8-bit */
+typedef unsigned char	BYTE;
 
-/* These types must be 8-bit integer */
-typedef char			CHAR;
-typedef uint8_t			UCHAR;
-typedef uint8_t			BYTE;
+/* These types MUST be 16-bit */
+typedef short			SHORT;
+typedef unsigned short	WORD;
+typedef unsigned short	WCHAR;
 
-/* These types must be 16-bit integer */
-typedef int16_t			SHORT;
-typedef uint16_t		USHORT;
-typedef uint16_t		WORD;
-typedef uint16_t		WCHAR;
+/* These types MUST be 32-bit */
+typedef long			LONG;
+typedef unsigned long	DWORD;
 
-/* These types must be 32-bit integer */
-typedef int32_t			LONG;
-typedef uint32_t		ULONG;
-typedef uint32_t		DWORD;
+/* This type MUST be 64-bit (Remove this for ANSI C (C89) compatibility) */
+typedef unsigned long long QWORD;
 
 #endif
 

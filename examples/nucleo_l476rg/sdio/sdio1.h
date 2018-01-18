@@ -55,7 +55,8 @@ public:
 		SD_READ_OCR				= 58,
 
 		SD_SD_APP_OP_COND		= 41,
-		SD_SEND_STATUS			= 13
+		SD_SEND_STATUS			= 13,
+		SD_SET_BUS_WIDTH		= 6,
 	};
 
 	static const uint32_t SD_CHECK_VOLTAGE	= 0x1AA;
@@ -91,305 +92,36 @@ public:
 protected:
 	static CardType cardType;
 	static uint32_t relativeAddress;
-	static uint32_t deviceSize;
+	static uint64_t deviceSize;
+	static uint32_t sectorCount;
 	static uint32_t maxTransferRate;
 
 public:
-	Sdio1()
-	{
+	static bool transferComplete;
+	static bool writeStarted;
+	static bool readStarted;
 
-	}
+public:
+	Sdio1();
 
-	template< class SystemClock, uint32_t baudrate,
-					uint16_t tolerance = xpcc::Tolerance::FivePercent >
-	static void
-	initialize()
-	{
-		RCC->CCIPR |= RCC_CCIPR_CLK48SEL_0 | RCC_CCIPR_CLK48SEL_1;
+	static void powerOn();
+	static void	powerOff();
+	static uint8_t	initializeCard();
 
-		RCC->APB2ENR |= RCC_APB2ENR_SDMMC1EN;
-		RCC->APB2RSTR |= RCC_APB2RSTR_SDMMC1RST;
-		RCC->APB2RSTR &= ~RCC_APB2RSTR_SDMMC1RST;
+	static uint8_t readBlocks(const void* data, uint32_t numberOfBlocks, uint32_t blockAdress);
+	static uint8_t readBlocksDMA(const void* data, uint32_t numberOfBlocks, uint32_t blockAdress);
 
-		SDMMC1->POWER = SDMMC_POWER_PWRCTRL_1 | SDMMC_POWER_PWRCTRL_0;
-		xpcc::delayMilliseconds(1);
-		SDMMC1->CLKCR = SDMMC_CLKCR_CLKEN | 0x76;  //During Initialization clk frequnecy has to be lower than 400Khz
-	}
+	static uint8_t writeBlocks(const void* data, uint32_t numberOfBlocks, uint32_t blockAddress);
+	static uint8_t writeBlocksDMA(const void* data, uint32_t numberOfBlocks, uint32_t blockAddress);
 
-	static void
-	powerOn()
-	{
-		RCC->CCIPR |= RCC_CCIPR_CLK48SEL_0 | RCC_CCIPR_CLK48SEL_1;
+	static uint8_t getCardInfo();
 
-		RCC->APB2ENR |= RCC_APB2ENR_SDMMC1EN;
-		RCC->APB2RSTR |= RCC_APB2RSTR_SDMMC1RST;
-		RCC->APB2RSTR &= ~RCC_APB2RSTR_SDMMC1RST;
+	static bool	isTransferComplete();
 
-		SDMMC1->POWER = SDMMC_POWER_PWRCTRL_1 | SDMMC_POWER_PWRCTRL_0;
-		xpcc::delayMilliseconds(1);
-	}
+	static CommandError	sendCommand(Command cmd, CommandResponse resp, uint32_t argument);
+	static uint32_t	getCommandResp1();
 
-	static void
-	powerOff()
-	{
-
-	}
-
-	static uint8_t
-	initializeCard()
-	{
-		SDMMC1->CLKCR |= SDMMC_CLKCR_CLKEN | 0x76;  //During Initialization clk frequnecy has to be lower than 400Khz
-
-		if(sendCommand(Command::SD_GO_IDLE_STATE, CommandResponse::None, 0) != CommandError::Success)
-			return 1;
-
-		if(sendCommand(Command::SD_HS_SEND_EXT_CSD, CommandResponse::Short, SD_CHECK_VOLTAGE) == CommandError::Success)
-		{
-			cardType = CardType::HighCapacity;
-		}
-
-		if(sendCommand(Command::SD_APP_CMD, CommandResponse::Short, 0) == CommandError::Success)
-		{
-			uint32_t voltage = 0;
-			uint32_t tries = 0;
-			while(!voltage && tries < SD_MAX_TRIAL)
-			{
-				if(sendCommand(Command::SD_APP_CMD, CommandResponse::Short, 0) != CommandError::Success)
-					return 1;
-
-				if(sendCommand(Command::SD_SD_APP_OP_COND, CommandResponse::Short,
-							   SD_VOLTAGE_WINDOW | SD_HIGH_CAPACITY) != CommandError::CrcFail)
-					return 1;
-				uint32_t resp = getCommandResp1();
-				voltage = (((resp >> 31) == 1) ? 1 : 0);
-				tries++;
-			}
-
-			if(tries >= SD_MAX_TRIAL)
-				return 1;
-		}
-		else
-		{
-			cardType = CardType::MMC;
-		}
-
-		if(sendCommand(Command::SD_GET_CID, CommandResponse::Long, 0) != CommandError::Success)
-			return 1;
-		if(sendCommand(Command::SD_SEND_REL_ADD, CommandResponse::Short, 0) != CommandError::Success)
-			return 1;
-		relativeAddress = getCommandResp1();
-		getCardInfo();
-		if(sendCommand(Command::SD_SELECT_CARD, CommandResponse::Short, relativeAddress) != CommandError::Success)
-			return 1;
-
-		return 0;
-	}
-
-	static uint8_t
-	readBlocks(void* data, uint32_t numberOfBlocks, uint32_t blockAdress)
-	{
-		if(cardType == CardType::HighCapacity)
-		{
-			blockAdress *= 512;
-		}
-
-		SDMMC1->DCTRL = 0;
-		SDMMC1->DTIMER = 0xffffffff;
-		SDMMC1->DLEN = numberOfBlocks*512;
-		SDMMC1->DCTRL = SDMMC_DCTRL_DBLOCKSIZE_0 | SDMMC_DCTRL_DBLOCKSIZE_3 | SDMMC_DCTRL_DTDIR | SDMMC_DCTRL_DTEN;
-
-		CommandError error = CommandError::Success;
-		if(numberOfBlocks == 1)
-		{
-			error = sendCommand(Command::SD_READ_SINGLE_BLOCK, CommandResponse::Short, blockAdress);
-		} else
-		{
-			error = sendCommand(Command::SD_READ_MULTI_BLOCK, CommandResponse::Short, blockAdress);
-		}
-
-		uint32_t* tempbuff = (uint32_t*) data;
-		if(error == CommandError::Success)
-		{
-			while(!(SDMMC1->STA & (SDMMC_STA_RXOVERR | SDMMC_STA_DCRCFAIL | SDMMC_STA_DTIMEOUT | SDMMC_STA_DATAEND)))
-			{
-				if(SDMMC1->STA & SDMMC_STA_RXFIFOHF)
-				{
-					for(uint32_t count = 0U; count < 8U; count++)
-					{
-						*(tempbuff + count) = SDMMC1->FIFO;
-					}
-					tempbuff += 8U;
-				}
-			}
-		}
-
-		SDMMC1->ICR = 0Xffffffff;
-		if(sendCommand(Command::SD_STOP_TRANSMISSION, CommandResponse::Short, 0) != CommandError::Success)
-			return 1;
-	}
-
-	static uint8_t
-	writeBlocks(void* data, uint32_t numberOfBlocks, uint32_t blockAddress)
-	{
-		if(cardType == CardType::HighCapacity)
-		{
-			blockAddress *= 512;
-		}
-
-		SDMMC1->DCTRL = 0;
-		SDMMC1->DTIMER = 0xffffffff;
-		SDMMC1->DLEN = numberOfBlocks*512;
-		SDMMC1->DCTRL = SDMMC_DCTRL_DBLOCKSIZE_0 | SDMMC_DCTRL_DBLOCKSIZE_3 | SDMMC_DCTRL_DTEN;
-
-		CommandError error = CommandError::Success;
-		if(numberOfBlocks == 1)
-		{
-			error = sendCommand(Command::SD_WRITE_SINGLE_BLOCK, CommandResponse::Short, blockAddress);
-		} else
-		{
-			error = sendCommand(Command::SD_WRITE_MULTI_BLOCK, CommandResponse::Short, blockAddress);
-		}
-
-		uint32_t* tempbuff = (uint32_t*) data;
-		if(error == CommandError::Success)
-		{
-			while(!(SDMMC1->STA & (SDMMC_STA_TXUNDERR | SDMMC_STA_DCRCFAIL | SDMMC_STA_DTIMEOUT | SDMMC_STA_DATAEND)))
-			{
-				if(SDMMC1->STA & SDMMC_STA_TXFIFOHE)
-				{
-					for(uint32_t count = 0U; count < 8U; count++)
-					{
-						SDMMC1->FIFO = *(tempbuff + count);
-					}
-					tempbuff += 8U;
-				}
-			}
-		}
-
-		SDMMC1->ICR = 0Xffffffff;
-		if(sendCommand(Command::SD_STOP_TRANSMISSION, CommandResponse::Short, 0) != CommandError::Success)
-			return 1;
-	}
-
-	static uint8_t
-	getCardInfo()
-	{
-		if(sendCommand(Command::SD_SEND_CSD, CommandResponse::Long, relativeAddress) != CommandError::Success)
-			return 1;
-
-		uint32_t csd[4];
-		csd[0] = SDMMC1->RESP1;
-		csd[1] = SDMMC1->RESP2;
-		csd[2] = SDMMC1->RESP3;
-		csd[3] = SDMMC1->RESP4;
-
-		deviceSize = (csd[1] & 0x0000003F) << 16;
-		deviceSize = (csd[2] & 0xFFFF0000) >> 16;
-		deviceSize *= 512 * 1024;
-
-		uint8_t tmp = (csd[3] & 0xFF000000) >> 24;
-		uint32_t unit = 0;
-		switch(tmp & 0xE0)
-		{
-		case 0:
-			unit = 100;
-			break;
-		case 1:
-			unit = 1000;
-			break;
-		case 2:
-			unit = 10000;
-			break;
-		case 3:
-			unit = 100000;
-			break;
-		}
-
-		switch(tmp & 0x1E)
-		{
-		case 0x1:
-			maxTransferRate = unit;
-			break;
-		case 0x2:
-			maxTransferRate = 1.2 * unit;
-			break;
-		case 0x3:
-			maxTransferRate = 1.3 * unit;
-			break;
-		case 0x4:
-			maxTransferRate = 1.5 * unit;
-			break;
-		case 0x5:
-			maxTransferRate = 2 * unit;
-			break;
-		case 0x6:
-			maxTransferRate = 2.5 * unit;
-			break;
-		case 0x7:
-			maxTransferRate = 3.0 * unit;
-			break;
-		case 0x8:
-			maxTransferRate = 3.5 * unit;
-			break;
-		case 0x9:
-			maxTransferRate = 4.0 * unit;
-			break;
-		case 0xA:
-			maxTransferRate = 4.5 * unit;
-			break;
-		case 0xB:
-			maxTransferRate = 5.0 * unit;
-			break;
-		case 0xC:
-			maxTransferRate = 5.5 * unit;
-			break;
-		case 0xD:
-			maxTransferRate = 6.0 * unit;
-			break;
-		case 0xE:
-			maxTransferRate = 7.0 * unit;
-			break;
-		case 0xF:
-			maxTransferRate = 8.0 * unit;
-			break;
-		}
-	}
-
-protected:
-
-	static CommandError
-	sendCommand(Command cmd, CommandResponse resp, uint32_t argument)
-	{
-		SDMMC1->ICR = SDMMC_ICR_CCRCFAILC | SDMMC_ICR_CTIMEOUTC | SDMMC_ICR_CMDRENDC | SDMMC_ICR_CMDSENTC;
-
-		SDMMC1->ARG = argument;
-		SDMMC1->CMD = ~SD_CMD_CLEAR_MSK | static_cast<uint32_t>(cmd) | static_cast<uint32_t>(resp) | SDMMC_CMD_CPSMEN;
-		if(resp == CommandResponse::None)
-			while(!(SDMMC1->STA & (SDMMC_STA_CTIMEOUT | SDMMC_STA_CMDSENT)));
-		else
-			while(!(SDMMC1->STA & (SDMMC_STA_CTIMEOUT | SDMMC_STA_CMDREND | SDMMC_STA_CCRCFAIL)));
-
-		if(SDMMC1->STA & SDMMC_STA_CTIMEOUT) {
-			return CommandError::Timeout;
-		}
-		if(SDMMC1->STA & SDMMC_STA_CCRCFAIL) {
-			return CommandError::CrcFail;
-		}
-		return CommandError::Success;
-	}
-
-	static uint32_t
-	getCommandResp1()
-	{
-		return SDMMC1->RESP1 & SD_RESP1_NO_ERROR;
-	}
-
-
+	static uint32_t getSectorCount();
 };
 
-Sdio1::CardType Sdio1::cardType(Sdio1::CardType::StdCapacityV1);
-uint32_t Sdio1::relativeAddress(0);
-uint32_t Sdio1::deviceSize(0);
-uint32_t Sdio1::maxTransferRate(0);
-
-#endif // SDIO1_H
+#endif
