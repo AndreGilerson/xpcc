@@ -1,0 +1,25 @@
+#ifndef XPCC_STM32_SDIO_TYPE_IDS_HPP
+#define XPCC_STM32_SDIO_TYPE_IDS_HPP
+
+namespace xpcc
+{
+
+namespace stm32
+{
+
+namespace TypeId
+{
+	typedef struct{} Sdio1Data0;
+	typedef struct{} Sdio1Data1;
+	typedef struct{} Sdio1Data2;
+	typedef struct{} Sdio1Data3;
+	typedef struct{} Sdio1Cmd;
+	typedef struct{} Sdio1Sck;
+
+
+}
+
+}
+}
+
+#endif // XPCC_STM32_SPI_TYPE_IDS_HPP

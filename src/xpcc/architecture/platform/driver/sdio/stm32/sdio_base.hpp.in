@@ -1,0 +1,37 @@
+
+#ifndef XPCC_STM32_SDIO_BASE_HPP
+#define XPCC_STM32_SDIO_BASE_HPP
+
+#include <stdint.h>
+#include "../../../device.hpp"
+
+namespace xpcc
+{
+
+namespace stm32
+{
+
+/**
+ * Base class for the SPI classes
+ *
+ * Provides some common enum that do not depend on the specific SPI.
+ *
+ * @author Kevin Laeufer
+ * @internal
+ * @ingroup		{{target.string}}_spi
+ */
+class SdioBase
+{
+public:
+static const TypeId::Sdio1Data0 Data0;
+static const TypeId::Sdio1Data1 Data1;
+static const TypeId::Sdio1Data2 Data2;
+static const TypeId::Sdio1Data3 Data3;
+static const TypeId::Sdio1Cmd Cmd;
+static const TypeId::Sdio1Sck Sck;
+};
+
+}
+}
+
+#endif

@@ -121,6 +121,7 @@
     <!-- <driver type="timer" name="stm32" instances="1,2,3,4,5,6,7,8,15,16,17"/> -->
     <driver type="uart" name="stm32" instances="1,2,3,4,5"/>
     <!-- <driver type="usb" name="stm32_fs"/> -->
+    <driver type="sdio" name="stm32" instances="1"/>
     <driver type="gpio" name="stm32">
       <gpio port="A" id="0">
         <!-- <af id="1" peripheral="Timer2" name="Channel1"/> -->
@@ -410,10 +411,12 @@
         <!-- <af id="3" peripheral="Timer8" name="Channel2"/> -->
       </gpio>
       <gpio port="C" id="8">
+        <af id="12" peripheral="Sdio1" name="Data0" />
         <!-- <af id="2" peripheral="Timer3" name="Channel3"/> -->
         <!-- <af id="3" peripheral="Timer8" name="Channel3"/> -->
       </gpio>
       <gpio port="C" id="9">
+        <af id="12" peripheral="Sdio1" name="Data1" />
         <!-- <af id="1" peripheral="Timer8" name="BreakIn" type="in"/> -->
         <!-- <af id="2" peripheral="Timer3" name="Channel4"/> -->
         <!-- <af id="3" peripheral="Timer8" name="Channel4"/> -->
@@ -421,18 +424,21 @@
         <!-- <af id="14" peripheral="Timer8" name="ExternalTrigger" type="in"/> -->
       </gpio>
       <gpio port="C" id="10">
+        <af id="12" peripheral="Sdio1" name="Data2" />
         <af id="6" peripheral="SpiMaster3" name="Sck" type="out"/>
         <af id="7" peripheral="Uart3" name="Tx" type="out"/>
         <af id="7" peripheral="UartSpiMaster3" name="Mosi" type="out"/>
         <af id="8" peripheral="Uart4" name="Tx" type="out"/>
       </gpio>
       <gpio port="C" id="11">
+        <af id="12" peripheral="Sdio1" name="Data3" />
         <af id="6" peripheral="SpiMaster3" name="Miso" type="in"/>
         <af id="7" peripheral="Uart3" name="Rx" type="in"/>
         <af id="7" peripheral="UartSpiMaster3" name="Miso" type="in"/>
         <af id="8" peripheral="Uart4" name="Rx" type="in"/>
       </gpio>
       <gpio port="C" id="12">
+        <af id="12" peripheral="Sdio1" name="Sck" />
         <af id="6" peripheral="SpiMaster3" name="Mosi" type="out"/>
         <af id="7" peripheral="Uart3" name="Ck" type="out"/>
         <af id="7" peripheral="UartSpiMaster3" name="Sck" type="out"/>
@@ -450,6 +456,7 @@
         <af id="9" peripheral="Can1" name="Tx" type="out"/>
       </gpio>
       <gpio port="D" id="2">
+        <af id="12" peripheral="Sdio1" name="Cmd" />
         <!-- <af id="2" peripheral="Timer3" name="ExternalTrigger" type="in"/> -->
         <af id="7" peripheral="Uart3" name="De"/>
         <af id="7" peripheral="Uart3" name="Rts" type="out"/>
